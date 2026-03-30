@@ -1,0 +1,27 @@
+# KubeClaw Kustomize Base
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kubeclaw-system
+
+resources:
+  - namespace.yaml
+  - crd.yaml
+  - deployment.yaml
+  - service.yaml
+  - rbac.yaml
+  - serviceaccount.yaml
+
+images:
+  - name: kubeclaw-operator
+    newName: ghcr.io/egkristi/kubeclaw-operator
+    newTag: v0.1.0
+
+configMapGenerator:
+  - name: kubeclaw-config
+    literals:
+      - LOG_LEVEL=info
+      - DEFAULT_SECURITY_SANDBOX_ENABLED=true
+      - DEFAULT_SECURITY_SANDBOX_LANDLOCK=true
+      - DEFAULT_SECURITY_SANDBOX_SECCOMP=true
