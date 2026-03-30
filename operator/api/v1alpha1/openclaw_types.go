@@ -25,16 +25,16 @@ import (
 type OpenClawSpec struct {
 	// Workspace configuration for the OpenClaw instance
 	Workspace WorkspaceSpec `json:"workspace,omitempty"`
-	
+
 	// Model configuration for inference
 	Model ModelSpec `json:"model,omitempty"`
-	
+
 	// Security policies for the instance
 	Security SecuritySpec `json:"security,omitempty"`
-	
+
 	// Resource requirements
 	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-	
+
 	// Channel configurations
 	Channels ChannelsSpec `json:"channels,omitempty"`
 	
@@ -47,10 +47,10 @@ type OpenClawSpec struct {
 type WorkspaceSpec struct {
 	// Git repository URL for the workspace
 	Repository string `json:"repository,omitempty"`
-	
+
 	// Git branch to clone (default: main)
 	Branch string `json:"branch,omitempty"`
-	
+
 	// Credentials for private repositories
 	Credentials SecretRef `json:"credentials,omitempty"`
 }
@@ -59,7 +59,7 @@ type WorkspaceSpec struct {
 type SecretRef struct {
 	// Name of the secret
 	Name string `json:"name,omitempty"`
-	
+
 	// Namespace of the secret (defaults to same namespace as OpenClaw)
 	Namespace string `json:"namespace,omitempty"`
 }
@@ -115,13 +115,13 @@ type EmptyDirSpec struct {
 type ModelSpec struct {
 	// Provider: anthropic, openai, ollama
 	Provider string `json:"provider,omitempty"`
-	
+
 	// Secret containing the API key
 	APIKeySecretRef string `json:"apiKeySecretRef,omitempty"`
-	
+
 	// Model identifier
 	Model string `json:"model,omitempty"`
-	
+
 	// Base URL for custom endpoints (optional)
 	BaseURL string `json:"baseURL,omitempty"`
 }
@@ -130,7 +130,7 @@ type ModelSpec struct {
 type SecuritySpec struct {
 	// Sandbox configuration
 	Sandbox SandboxSpec `json:"sandbox,omitempty"`
-	
+
 	// Egress policy
 	Egress EgressSpec `json:"egress,omitempty"`
 }
@@ -139,13 +139,13 @@ type SecuritySpec struct {
 type SandboxSpec struct {
 	// Enable sandboxing
 	Enabled bool `json:"enabled,omitempty"`
-	
+
 	// Enable Landlock filesystem sandboxing
 	Landlock bool `json:"landlock,omitempty"`
-	
+
 	// Enable seccomp
 	Seccomp bool `json:"seccomp,omitempty"`
-	
+
 	// Enable network policy
 	NetworkPolicy bool `json:"networkPolicy,omitempty"`
 }
@@ -154,10 +154,10 @@ type SandboxSpec struct {
 type EgressSpec struct {
 	// Mode: whitelist, blacklist, deny-all
 	Mode string `json:"mode,omitempty"`
-	
+
 	// Allowed domains for whitelist mode
 	AllowedDomains []string `json:"allowedDomains,omitempty"`
-	
+
 	// Blocked domains for blacklist mode
 	BlockedDomains []string `json:"blockedDomains,omitempty"`
 }
@@ -166,10 +166,10 @@ type EgressSpec struct {
 type ChannelsSpec struct {
 	// Telegram configuration
 	Telegram TelegramSpec `json:"telegram,omitempty"`
-	
+
 	// Email configuration
 	Email EmailSpec `json:"email,omitempty"`
-	
+
 	// Webhook configuration
 	Webhook WebhookSpec `json:"webhook,omitempty"`
 }
@@ -178,7 +178,7 @@ type ChannelsSpec struct {
 type TelegramSpec struct {
 	// Enable Telegram channel
 	Enabled bool `json:"enabled,omitempty"`
-	
+
 	// Secret containing bot token
 	TokenSecretRef string `json:"tokenSecretRef,omitempty"`
 }
@@ -187,7 +187,7 @@ type TelegramSpec struct {
 type EmailSpec struct {
 	// Enable email channel
 	Enabled bool `json:"enabled,omitempty"`
-	
+
 	// Secret containing SMTP credentials
 	SMTPSecretRef string `json:"smtpSecretRef,omitempty"`
 }
@@ -196,33 +196,57 @@ type EmailSpec struct {
 type WebhookSpec struct {
 	// Enable webhook channel
 	Enabled bool `json:"enabled,omitempty"`
-	
+
 	// Port for webhook server
 	Port int32 `json:"port,omitempty"`
+}
+
+// Condition contains details for one aspect of the current state
+type Condition struct {
+	// Type of condition
+	Type string `json:"type"`
+
+	// Status of the condition (True, False, Unknown)
+	Status string `json:"status"`
+
+	// Reason for the condition's last transition
+	Reason string `json:"reason,omitempty"`
+
+	// Message with details about the transition
+	Message string `json:"message,omitempty"`
+
+	// LastTransitionTime is the last time the condition transitioned
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 }
 
 // OpenClawStatus defines the observed state of OpenClaw
 type OpenClawStatus struct {
 	// Phase: Pending, Running, Failed, Terminating
 	Phase string `json:"phase,omitempty"`
-	
+
 	// Conditions for the instance
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-	
+	Conditions []Condition `json:"conditions,omitempty"`
+
 	// Pod name running the instance
 	PodName string `json:"podName,omitempty"`
-	
+
 	// Last error message
 	LastError string `json:"lastError,omitempty"`
-	
+
 	// Workspace sync status
 	WorkspaceSynced bool `json:"workspaceSynced,omitempty"`
-	
+
 	// Storage status
 	StorageReady bool `json:"storageReady,omitempty"`
-	
+
 	// PersistentVolumeClaim name (if using PVC)
 	PVCName string `json:"pvcName,omitempty"`
+
+	// ServiceName is the name of the Service for this instance
+	ServiceName string `json:"serviceName,omitempty"`
+
+	// NetworkPolicyName is the name of the NetworkPolicy
+	NetworkPolicyName string `json:"networkPolicyName,omitempty"`
 }
 
 //+kubebuilder:object:root=true
