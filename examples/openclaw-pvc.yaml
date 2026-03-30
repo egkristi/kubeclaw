@@ -1,0 +1,68 @@
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClaw
+metadata:
+  name: persistent-assistant
+  namespace: default
+spec:
+  # Workspace configuration
+  workspace:
+    repository: https://github.com/egkristi/munin-openclaw-workspace
+    branch: main
+    credentials:
+      name: workspace-git-credentials
+      
+  # Model configuration
+  model:
+    provider: anthropic
+    apiKeySecretRef: anthropic-api-key
+    model: claude-sonnet-4-6
+    
+  # Storage: PersistentVolumeClaim for ~/.openclaw
+  # Data persists across pod restarts
+  storage:
+    type: PersistentVolumeClaim
+    persistentVolumeClaim:
+      size: 10Gi
+      accessMode: ReadWriteOnce
+      # Optional: specify storage class
+      # storageClassName: standard
+      # Optional: use existing PV
+      # selector:
+      #   matchLabels:
+      #     app: openclaw-data
+      
+  # Security policies
+  security:
+    sandbox:
+      enabled: true
+      landlock: true
+      seccomp: true
+      networkPolicy: true
+    egress:
+      mode: whitelist
+      allowedDomains:
+        - api.anthropic.com
+        - github.com
+        - raw.githubusercontent.com
+        - api.github.com
+        - smtp.proisp.no
+        - imap.proisp.no
+        
+  # Resource limits
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+      ephemeralStorage: 20Gi
+      
+  # Channels
+  channels:
+    telegram:
+      enabled: true
+      tokenSecretRef: telegram-bot-token
+    email:
+      enabled: true
+      smtpSecretRef: email-credentials
