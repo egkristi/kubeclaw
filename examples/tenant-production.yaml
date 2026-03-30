@@ -1,0 +1,60 @@
+# Production tenant with resource quotas and network isolation
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClawTenant
+metadata:
+  name: production-team
+spec:
+  displayName: "Production Team"
+  description: "Production OpenClaw instances for the platform team"
+  owner: "platform-team@company.com"
+  
+  # Maximum 10 OpenClaw instances in this tenant
+  maxInstances: 10
+  
+  # Resource quotas for the entire tenant
+  resourceQuota:
+    hardCPU: "40"
+    hardMemory: 80Gi
+    hardStorage: 200Gi
+    hardPVCs: 20
+    hardServices: 20
+    hardPods: 20
+    
+  # Default resource constraints for new instances
+  limitRange:
+    defaultCPURequest: "2"
+    defaultCPULimit: "4"
+    defaultMemoryRequest: 4Gi
+    defaultMemoryLimit: 8Gi
+    defaultStorageRequest: 10Gi
+    minCPU: "1"
+    maxCPU: "8"
+    minMemory: 2Gi
+    maxMemory: 16Gi
+    
+  # Network isolation
+  networkIsolation:
+    enabled: true
+    denyAllExternal: false
+    allowedIngressNamespaces:
+      - monitoring
+      - logging
+    allowedEgressNamespaces:
+      - kube-system
+      - monitoring
+    allowedExternalDomains:
+      - api.anthropic.com
+      - api.openai.com
+      - github.com
+      - *.githubusercontent.com
+      
+  # Labels applied to all resources
+  labels:
+    environment: production
+    team: platform
+    cost-center: "CC-1234"
+    
+  # Annotations
+  annotations:
+    backup.velero.io/backup-volumes: openclaw-data
+    description: "Critical production OpenClaw instances"

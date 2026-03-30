@@ -1,0 +1,55 @@
+# Development tenant with relaxed quotas for experimentation
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClawTenant
+metadata:
+  name: development-team
+spec:
+  displayName: "Development Team"
+  description: "Development and testing OpenClaw instances"
+  owner: "dev-team@company.com"
+  
+  # Maximum 5 OpenClaw instances
+  maxInstances: 5
+  
+  # Relaxed resource quotas
+  resourceQuota:
+    hardCPU: "10"
+    hardMemory: 20Gi
+    hardStorage: 50Gi
+    hardPVCs: 10
+    hardServices: 10
+    hardPods: 10
+    
+  # Default resource constraints (smaller than production)
+  limitRange:
+    defaultCPURequest: "1"
+    defaultCPULimit: "2"
+    defaultMemoryRequest: 2Gi
+    defaultMemoryLimit: 4Gi
+    defaultStorageRequest: 5Gi
+    minCPU: "500m"
+    maxCPU: "4"
+    minMemory: 1Gi
+    maxMemory: 8Gi
+    
+  # Network isolation (more permissive for dev)
+  networkIsolation:
+    enabled: true
+    denyAllExternal: false
+    allowedEgressNamespaces:
+      - kube-system
+      - monitoring
+    # Dev teams can access more external services
+    allowedExternalDomains:
+      - api.anthropic.com
+      - api.openai.com
+      - api.gemini.google.com
+      - github.com
+      - *.githubusercontent.com
+      - *.docker.io
+      - *.npmjs.org
+      
+  labels:
+    environment: development
+    team: dev
+    cost-center: "CC-5678"

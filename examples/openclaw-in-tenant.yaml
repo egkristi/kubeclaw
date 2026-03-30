@@ -1,0 +1,74 @@
+# OpenClaw instance deployed within a tenant namespace
+# The tenant enforces resource quotas and network policies
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClaw
+metadata:
+  name: team-assistant
+  namespace: production-team  # Must match tenant name
+spec:
+  workspace:
+    repository: https://github.com/company/team-workspace
+    branch: main
+    credentials:
+      name: workspace-git-token
+      
+  model:
+    provider: anthropic
+    apiKeySecretRef: anthropic-api-key
+    model: claude-sonnet-4-6
+    
+  security:
+    sandbox:
+      enabled: true
+      landlock: true
+      seccomp: true
+      networkPolicy: true
+    egress:
+      mode: whitelist
+      # These are in addition to tenant-level allowedExternalDomains
+      allowedDomains:
+        - internal-api.company.com
+        - jira.company.com
+        - confluence.company.com
+        
+  storage:
+    type: PersistentVolumeClaim
+    persistentVolumeClaim:
+      size: 20Gi
+      accessMode: ReadWriteOnce
+      
+  resources:
+    # These are constrained by tenant LimitRange
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+      
+  channels:
+    telegram:
+      enabled: true
+      tokenSecretRef: telegram-bot-token
+    email:
+      enabled: true
+      smtpSecretRef: smtp-credentials
+---
+# Required secrets (created in tenant namespace)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-api-key
+  namespace: production-team
+type: Opaque
+stringData:
+  api-key: "sk-ant-..."
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: workspace-git-token
+  namespace: production-team
+type: Opaque
+stringData:
+  token: "ghp_..."
