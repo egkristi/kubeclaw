@@ -38,15 +38,117 @@ KubeClaw wraps OpenClaw in Kubernetes-native infrastructure, providing:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
-
-### Prerequisites
+## Prerequisites
 
 - Kubernetes 1.25+
 - Helm 3.12+
 - kubectl configured
 
-### Install KubeClaw Operator
+## Install Kubernetes
+
+### macOS
+
+#### Option 1: OrbStack (Recommended)
+
+[OrbStack](https://orbstack.dev/) is the fastest way to run Kubernetes on Mac — lightweight and Docker-compatible.
+
+```bash
+# Install OrbStack
+brew install orbstack
+
+# Start OrbStack (Kubernetes is included)
+orbstack
+
+# Verify kubectl works
+kubectl get nodes
+```
+
+#### Option 2: Docker Desktop
+
+```bash
+# Install Docker Desktop with Kubernetes
+brew install --cask docker
+
+# Enable Kubernetes in Docker Desktop settings
+# Then verify:
+kubectl get nodes
+```
+
+#### Option 3: Minikube
+
+```bash
+# Install minikube
+brew install minikube
+
+# Start cluster
+minikube start --driver=docker
+
+# Verify
+kubectl get nodes
+```
+
+### Linux
+
+#### Option 1: MicroK8s (Ubuntu)
+
+```bash
+# Install MicroK8s
+sudo snap install microk8s --classic
+
+# Add user to group
+sudo usermod -a -G microk8s $USER
+
+# Enable addons
+microk8s enable dns storage ingress
+
+# Use kubectl
+microk8s kubectl get nodes
+```
+
+#### Option 2: k3s
+
+```bash
+# Install k3s
+curl -sfL https://get.k3s.io | sh -
+
+# Configure kubectl
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+
+# Verify
+kubectl get nodes
+```
+
+#### Option 3: kind (Kubernetes in Docker)
+
+```bash
+# Install kind
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+chmod +x ./kind
+sudo mv ./kind /usr/local/bin/kind
+
+# Create cluster
+kind create cluster
+
+# Verify
+kubectl get nodes
+```
+
+### Windows
+
+#### Option 1: Docker Desktop
+
+1. Install [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
+2. Enable Kubernetes in Settings → Kubernetes
+3. Enable WSL2 backend for better performance
+
+#### Option 2: WSL2 + k3s
+
+```powershell
+# In WSL2 Ubuntu terminal:
+curl -sfL https://get.k3s.io | sh -
+```
+
+## Install KubeClaw Operator
 
 ```bash
 helm repo add kubeclaw https://egkristi.github.io/kubeclaw
@@ -56,7 +158,7 @@ helm install kubeclaw-operator kubeclaw/kubeclaw-operator \
   --create-namespace
 ```
 
-### Deploy an OpenClaw Instance
+## Deploy an OpenClaw Instance
 
 ```yaml
 apiVersion: kubeclaw.io/v1alpha1
