@@ -1,0 +1,37 @@
+# OpenClaw instance using local Ollama for self-hosted models
+# Good for air-gapped environments or cost control
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClaw
+metadata:
+  name: ollama-assistant
+  namespace: default
+spec:
+  model:
+    provider: ollama
+    model: llama3.1:70b
+    # Point to your Ollama service
+    baseURL: http://ollama.ollama-system.svc.cluster.local:11434
+
+  security:
+    sandbox:
+      enabled: true
+      seccomp: true
+      networkPolicy: true
+    egress:
+      mode: whitelist
+      allowedDomains:
+        # Only internal cluster communication needed
+        - "*.cluster.local"
+
+  storage:
+    type: EmptyDir
+    emptyDir:
+      sizeLimit: 10Gi
+
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi

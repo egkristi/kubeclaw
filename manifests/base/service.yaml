@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubeclaw-operator
+  namespace: kubeclaw-system
+  labels:
+    app.kubernetes.io/name: kubeclaw-operator
+    app.kubernetes.io/component: controller
+spec:
+  selector:
+    app.kubernetes.io/name: kubeclaw-operator
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+      protocol: TCP
+  type: ClusterIP

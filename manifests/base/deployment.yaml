@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubeclaw-operator
+  namespace: kubeclaw-system
+  labels:
+    app.kubernetes.io/name: kubeclaw-operator
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubeclaw-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubeclaw-operator
+    spec:
+      serviceAccountName: kubeclaw-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: operator
+          image: kubeclaw-operator:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /manager
+          args:
+            - --leader-elect
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+            - name: healthz
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: OPERATOR_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: DEFAULT_SECURITY_SANDBOX_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: kubeclaw-config
+                  key: DEFAULT_SECURITY_SANDBOX_ENABLED
+            - name: DEFAULT_SECURITY_SANDBOX_LANDLOCK
+              valueFrom:
+                configMapKeyRef:
+                  name: kubeclaw-config
+                  key: DEFAULT_SECURITY_SANDBOX_LANDLOCK
+            - name: DEFAULT_SECURITY_SANDBOX_SECCOMP
+              valueFrom:
+                configMapKeyRef:
+                  name: kubeclaw-config
+                  key: DEFAULT_SECURITY_SANDBOX_SECCOMP
+            - name: DEFAULT_SECURITY_EGRESS_MODE
+              value: "whitelist"
+            - name: OPENCLAW_IMAGE
+              value: "ghcr.io/openclaw/openclaw:latest"
+            - name: GIT_INIT_IMAGE
+              value: "alpine/git:latest"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 65532
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: healthz
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      terminationGracePeriodSeconds: 10

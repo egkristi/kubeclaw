@@ -37,7 +37,7 @@ type OpenClawSpec struct {
 
 	// Channel configurations
 	Channels ChannelsSpec `json:"channels,omitempty"`
-	
+
 	// Storage configuration for ~/.openclaw
 	// If not specified, uses emptyDir (ephemeral)
 	Storage StorageSpec `json:"storage,omitempty"`
@@ -69,11 +69,11 @@ type StorageSpec struct {
 	// Type of storage: EmptyDir (default) or PersistentVolumeClaim
 	// +kubebuilder:validation:Enum=EmptyDir;PersistentVolumeClaim
 	Type string `json:"type,omitempty"`
-	
+
 	// PersistentVolumeClaim configuration
 	// Required when type is PersistentVolumeClaim
 	PersistentVolumeClaim *PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
-	
+
 	// EmptyDir configuration
 	// Optional when type is EmptyDir
 	EmptyDir *EmptyDirSpec `json:"emptyDir,omitempty"`
@@ -83,19 +83,19 @@ type StorageSpec struct {
 type PersistentVolumeClaimSpec struct {
 	// Storage class name (optional, uses default if not specified)
 	StorageClassName *string `json:"storageClassName,omitempty"`
-	
+
 	// Access mode (default: ReadWriteOnce)
 	// +kubebuilder:validation:Enum=ReadWriteOnce;ReadOnlyMany;ReadWriteMany
 	AccessMode string `json:"accessMode,omitempty"`
-	
+
 	// Storage size (e.g., "10Gi", "20Gi")
 	// +kubebuilder:validation:Pattern=^[0-9]+[GM]i$
 	Size string `json:"size,omitempty"`
-	
+
 	// Volume mode (default: Filesystem)
 	// +kubebuilder:validation:Enum=Filesystem;Block
 	VolumeMode string `json:"volumeMode,omitempty"`
-	
+
 	// Selector for matching existing PVs
 	Selector *metav1.LabelSelector `json:"selector,omitempty"`
 }
@@ -105,7 +105,7 @@ type EmptyDirSpec struct {
 	// Medium type: Memory or empty (disk)
 	// +kubebuilder:validation:Enum=Memory;""
 	Medium string `json:"medium,omitempty"`
-	
+
 	// Size limit (e.g., "10Gi")
 	// +optional
 	SizeLimit *string `json:"sizeLimit,omitempty"`

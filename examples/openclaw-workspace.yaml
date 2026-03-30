@@ -1,0 +1,67 @@
+# OpenClaw instance with Git workspace bootstrap
+# Clones a repository on startup for agent context
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClaw
+metadata:
+  name: workspace-assistant
+  namespace: default
+spec:
+  # Workspace configuration - cloned on pod startup
+  workspace:
+    repository: https://github.com/egkristi/munin-openclaw-workspace
+    branch: main
+    # For private repos, uncomment and create the secret:
+    # credentials:
+    #   name: workspace-git-credentials
+
+  model:
+    provider: anthropic
+    apiKeySecretRef: anthropic-api-key
+    model: claude-sonnet-4-20250514
+
+  security:
+    sandbox:
+      enabled: true
+      landlock: true
+      seccomp: true
+      networkPolicy: true
+    egress:
+      mode: whitelist
+      allowedDomains:
+        - api.anthropic.com
+        - github.com
+        - raw.githubusercontent.com
+
+  storage:
+    type: PersistentVolumeClaim
+    persistentVolumeClaim:
+      size: 20Gi
+      accessMode: ReadWriteOnce
+
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+---
+# API key secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-api-key
+  namespace: default
+type: Opaque
+stringData:
+  api-key: "your-anthropic-api-key-here"
+---
+# Git credentials for private repos (optional)
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: workspace-git-credentials
+#   namespace: default
+# type: Opaque
+# stringData:
+#   token: "your-github-pat-here"

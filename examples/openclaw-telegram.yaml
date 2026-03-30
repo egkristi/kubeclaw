@@ -1,0 +1,59 @@
+# OpenClaw instance with Telegram integration
+# Enables Telegram bot channel for remote interaction
+apiVersion: openclaw.io/v1alpha1
+kind: OpenClaw
+metadata:
+  name: telegram-assistant
+  namespace: default
+spec:
+  model:
+    provider: anthropic
+    apiKeySecretRef: anthropic-api-key
+    model: claude-sonnet-4-20250514
+
+  channels:
+    telegram:
+      enabled: true
+      tokenSecretRef: telegram-bot-token
+
+  security:
+    sandbox:
+      enabled: true
+      seccomp: true
+      networkPolicy: true
+    egress:
+      mode: whitelist
+      allowedDomains:
+        - api.anthropic.com
+        - api.telegram.org
+
+  storage:
+    type: PersistentVolumeClaim
+    persistentVolumeClaim:
+      size: 10Gi
+
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: anthropic-api-key
+  namespace: default
+type: Opaque
+stringData:
+  api-key: "your-anthropic-api-key-here"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: telegram-bot-token
+  namespace: default
+type: Opaque
+stringData:
+  token: "your-telegram-bot-token-here"

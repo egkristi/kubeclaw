@@ -11,12 +11,11 @@ resources:
   - deployment.yaml
   - service.yaml
   - rbac.yaml
-  - serviceaccount.yaml
 
 images:
   - name: kubeclaw-operator
     newName: ghcr.io/egkristi/kubeclaw-operator
-    newTag: v0.1.0
+    newTag: latest
 
 configMapGenerator:
   - name: kubeclaw-config
@@ -25,3 +24,8 @@ configMapGenerator:
       - DEFAULT_SECURITY_SANDBOX_ENABLED=true
       - DEFAULT_SECURITY_SANDBOX_LANDLOCK=true
       - DEFAULT_SECURITY_SANDBOX_SECCOMP=true
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false
