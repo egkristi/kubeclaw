@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubeclaw-operator.fullname" . }}
+  labels:
+    {{- include "kubeclaw-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "kubeclaw-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubeclaw-operator.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "kubeclaw-operator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: operator
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+        - /manager
+        args:
+        - --leader-elect
+        - --log-level={{ .Values.operator.logLevel }}
+        env:
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DEFAULT_SECURITY_SANDBOX_ENABLED
+          value: "{{ .Values.operator.defaults.security.sandbox.enabled }}"
+        - name: DEFAULT_SECURITY_SANDBOX_LANDLOCK
+          value: "{{ .Values.operator.defaults.security.sandbox.landlock }}"
+        - name: DEFAULT_SECURITY_SANDBOX_SECCOMP
+          value: "{{ .Values.operator.defaults.security.sandbox.seccomp }}"
+        - name: DEFAULT_SECURITY_SANDBOX_NETWORK_POLICY
+          value: "{{ .Values.operator.defaults.security.sandbox.networkPolicy }}"
+        - name: DEFAULT_SECURITY_EGRESS_MODE
+          value: "{{ .Values.operator.defaults.security.egress.mode }}"
+        ports:
+        - name: metrics
+          containerPort: 8080
+          protocol: TCP
+        - name: healthz
+          containerPort: 8081
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: healthz
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

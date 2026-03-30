@@ -1,0 +1,136 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubeclaw-operator.fullname" . }}
+  labels:
+    {{- include "kubeclaw-operator.labels" . | nindent 4 }}
+rules:
+# OpenClaw CRD management
+- apiGroups:
+  - openclaw.io
+  resources:
+  - openclaws
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - openclaw.io
+  resources:
+  - openclaws/status
+  verbs:
+  - get
+  - patch
+  - update
+  - openclaws/finalizers
+  verbs:
+  - update
+
+# Pod management
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+# ConfigMap and Secret management
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  - services
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+# NetworkPolicy management
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+# Event recording
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+
+# ServiceAccount management
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+# RBAC management for OpenClaw instances
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+
+{{/* Extra rules from values */}}
+{{- with .Values.rbac.extraRules }}
+{{- toYaml . }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubeclaw-operator.fullname" . }}
+  labels:
+    {{- include "kubeclaw-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubeclaw-operator.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "kubeclaw-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

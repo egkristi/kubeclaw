@@ -1,0 +1,91 @@
+# Default values for kubeclaw-operator.
+
+# Number of operator replicas
+replicaCount: 1
+
+image:
+  repository: ghcr.io/egkristi/kubeclaw-operator
+  pullPolicy: IfNotPresent
+  tag: "v0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  name: ""
+
+# RBAC configuration
+rbac:
+  create: true
+  # Additional RBAC rules for the operator
+  extraRules: []
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsUser: 65532
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Operator configuration
+operator:
+  # Log level: debug, info, warn, error
+  logLevel: info
+  
+  # Default values for OpenClaw instances
+  defaults:
+    security:
+      sandbox:
+        enabled: true
+        landlock: true
+        seccomp: true
+        networkPolicy: true
+      egress:
+        mode: whitelist
+    resources:
+      requests:
+        cpu: "2"
+        memory: 4Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+        ephemeralStorage: 20Gi
+
+# Prometheus monitoring
+monitoring:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics

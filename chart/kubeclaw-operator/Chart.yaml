@@ -1,0 +1,35 @@
+{{/*
+KubecLaw Operator Helm Chart
+*/}}
+apiVersion: v2
+name: kubeclaw-operator
+description: Kubernetes operator for deploying secure OpenClaw instances
+
+# A chart can be either an 'application' or a 'library' chart.
+type: application
+
+# This is the chart version.
+version: 0.1.0
+
+# This is the version number of the application being deployed.
+appVersion: "0.1.0"
+
+# Keywords for search
+keywords:
+  - openclaw
+  - ai
+  - agent
+  - kubernetes
+  - operator
+
+# Home page
+home: https://github.com/egkristi/kubeclaw
+
+# Sources
+sources:
+  - https://github.com/egkristi/kubeclaw
+
+# Maintainers
+maintainers:
+  - name: Erling Kristiansen
+    email: egkristi@gmail.com
