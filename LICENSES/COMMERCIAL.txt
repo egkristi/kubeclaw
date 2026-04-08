@@ -1,0 +1,68 @@
+KlawAgent Commercial License
+
+Copyright (c) 2026 Erling Kristiansen. All rights reserved.
+
+This Commercial License Agreement ("Agreement") governs the use of KlawAgent
+("Software") for commercial purposes beyond the terms of the GNU Affero General
+Public License v3.0 ("AGPLv3").
+
+--- WHO NEEDS A COMMERCIAL LICENSE ---
+
+You need a commercial license if you:
+
+1. Use KlawAgent in a commercial product or service with more than 50 managed
+   agents AND annual revenue exceeding USD 5,000,000, OR
+
+2. Distribute KlawAgent as part of a commercial product without releasing your
+   product's source code under AGPLv3, OR
+
+3. Offer KlawAgent as a hosted/managed service (SaaS) to third parties without
+   releasing all modifications under AGPLv3.
+
+--- WHO DOES NOT NEED A COMMERCIAL LICENSE ---
+
+You do NOT need a commercial license if you:
+
+- Use KlawAgent for personal, educational, or research purposes
+- Use KlawAgent in an open source project licensed under AGPLv3-compatible terms
+- Use KlawAgent commercially with fewer than 50 managed agents AND less than
+  USD 5,000,000 in annual revenue
+- Contribute to KlawAgent under the AGPLv3
+
+--- HOW TO OBTAIN A COMMERCIAL LICENSE ---
+
+Contact: erling@klawagent.io (or via https://github.com/egkristi/klawagent)
+
+Commercial licenses are available per organization, per agent tier, or as
+enterprise agreements with SLA and support. Pricing available on request.
+
+--- ENTERPRISE FEATURES ---
+
+The following features are available exclusively under a commercial license
+(feature flags enforced at runtime):
+
+- Playbooks with rolling deploy and rollback
+- Desired state management and continuous drift detection
+- SecurityPolicy with immutable rules and blast radius enforcement
+- Role-Based Access Control (RBAC) and multi-tenant isolation
+- SSO / SAML integration
+- Compliance-ready audit reporting (SOC2, ISO27001)
+- Air-gap / offline deployment support
+- Priority support and SLA guarantees
+
+--- OPEN SOURCE CORE ---
+
+The KlawAgent core — transport layer, Noise XX encryption, RPC executor,
+RPCPolicy engine, ConnectivityPolicy, and all transport drivers — is and
+will remain free and open source under AGPLv3.
+
+We will not retroactively relicense code already released under AGPLv3.
+
+--- DISCLAIMER ---
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+THE AUTHORS SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY.
+
+---
+
+Version 1.0 — April 2026
