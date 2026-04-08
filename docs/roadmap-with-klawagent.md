@@ -1,393 +1,321 @@
-# kubeclaw — Oppdatert Utviklingsplan med KlawAgent
+# kubeclaw — Utviklingsplan og Sikkerhetsarkitektur
 
 **Dato:** April 8, 2026  
-**Status:** Design + delvis implementert  
-**Kontekst:** Planoppdatering etter KlawAgent-design
+**Status:** Design + delvis implementert
 
 ---
 
-## Hva kubeclaw Er — Revidert Definisjon
+## Hva kubeclaw Er
 
-kubeclaw er ikke bare en Kubernetes-operator for OpenClaw.
+**kubeclaw er en Kubernetes-operator for OpenClaw — på enterprise-vis.**
 
-Med KlawAgent-integrasjon blir kubeclaw en **komplett enterprise AI-agent-plattform**:
+Det betyr:
+- OpenClaw kjører trygt og sikkert på Kubernetes
+- Riktig isolasjon, policy, secret management, og multi-tenancy — fra dag én
+- Skalerer fra én RPi5 med k3s til titalls noder i et datasenter
+- Ingen kompromiss på sikkerhet, uavhengig av clusterstørrelse
+
+**KlawAgent er ikke en del av kubeclaw.**
+
+KlawAgent er et separat verktøy — et valgfritt plugin — som en OpenClaw-instans
+kan bruke for å nå systemer utenfor clusteret. Det tilsvarer den direkte
+systemtilgangen en standard OpenClaw-installasjon på ett system har, men løst
+på enterprise-vis gjennom et agentlag.
 
 ```
-kubeclaw = OpenClaw orchestration on K8s
-         + KlawAgent: reach to ANY system outside the cluster
-         + Unified security policy across cluster and targets
-         + Multi-tenant isolation
-         + Zero-ingress networking
-```
+Standard OpenClaw (single system):
+  OpenClaw → exec, read, write → lokalt filsystem og prosesser
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Kubernetes Cluster (zero ingress, no public IP needed)      │
-│                                                              │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │  kubeclaw-operator                                      │  │
-│  │  - Orkestrerer OpenClaw-instanser (tenants)            │  │
-│  │  - Distribuerer policy til KlawAgents                  │  │
-│  │  - Håndterer External Secrets (Vault/KV)               │  │
-│  │  - Istio mTLS mellom alle pods                         │  │
-│  └────────────────────┬───────────────────────────────────┘  │
-│                        │                                      │
-│  ┌─────────────────────▼──────────────────────────────────┐  │
-│  │  Tenant: acme                                           │  │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │  │
-│  │  │  OpenClaw-1  │  │  OpenClaw-2  │  │ KlawAgent   │  │  │
-│  │  │  (AI agent)  │  │  (AI agent)  │  │  Gateway    │  │  │
-│  │  └──────┬───────┘  └──────┬───────┘  └──────┬──────┘  │  │
-│  └──────────┼────────────────┼─────────────────┼──────────┘  │
-└─────────────┼────────────────┼─────────────────┼─────────────┘
-              │                │                 │ Noise XX + relay
-              └────────────────┴─────────────────┘
-                                                 │
-                    ┌────────────────────────────┘
-                    ▼
-        ┌───────────────────────┐
-        │  Target systems       │
-        │  (behind NAT/FW)      │
-        │  ┌───────┐ ┌───────┐  │
-        │  │Agent  │ │Agent  │  │
-        │  │Linux  │ │Win    │  │
-        │  └───────┘ └───────┘  │
-        └───────────────────────┘
+kubeclaw (K8s):
+  OpenClaw pod → exec, read, write → ... ingenting utenfor clusteret (by design)
+  OpenClaw pod + KlawAgent → exec, read, write → target-systemer (valgfritt plugin)
 ```
 
 ---
 
-## Grunnpremisser: Kubernetes som Sikkerhetsplattform
+## Kubernetes som Sikkerhetsplattform
 
-Kubernetes gir isolasjon gratis. kubeclaw arver og forsterker dette.
+kubeclaw bygger på det Kubernetes allerede gir. Det er et bevisst valg — ikke
+dupliser det K8s løser godt. Legg til det K8s ikke gir.
 
-### Hva K8s allerede leverer
+### Hva K8s gir gratis
 
-| Lag | K8s standard | kubeclaw arver |
-|-----|-------------|----------------|
-| **Container-isolasjon** | Namespace, cgroups, seccomp | ✅ + PSA restricted |
-| **Nettverksisolasjon** | NetworkPolicy per namespace | ✅ + Istio mTLS |
-| **Secret management** | etcd-kryptert | ✅ + External Secrets (Vault) |
-| **RBAC** | K8s native | ✅ + kubeclaw-spesifikk |
-| **ResourceQuota** | Per namespace | ✅ konfigurert per tenant |
-| **Pod Security** | PSA restricted | ✅ påkrevd for alle pods |
+| Lag | K8s standard |
+|-----|-------------|
+| Container-isolasjon | Namespace, cgroups, seccomp |
+| Nettverksisolasjon | NetworkPolicy (med CNI) |
+| Identitet og tilgangskontroll | RBAC |
+| Secret management | etcd-kryptert |
+| Resource-begrensning | ResourceQuota, LimitRange |
+| Pod Security | Pod Security Admission (restricted) |
 
 ### Hva kubeclaw legger til
 
-| Lag | kubeclaw tillegg |
-|-----|-----------------|
-| **Service Mesh** | Istio mTLS mellom alle tjenester |
-| **External Systems** | KlawAgent — E2E-kryptert tilgang utenfor cluster |
-| **Policy Distribution** | Kyverno for K8s-native policy + KlawAgent RPCPolicy |
-| **Secret Rotation** | External Secrets Operator med Vault |
-| **Audit** | App-level audit på RPC-kall + K8s audit |
-| **Multi-tenancy** | OpenClawTenant CRD med namespace-isolering |
+| Lag | kubeclaw tillegg | Lettvekt-alternativ |
+|-----|-----------------|---------------------|
+| Policy enforcement | Kyverno | Kyverno (begge) |
+| Secret rotation | External Secrets Operator + Vault | ESO + lokal Vault dev |
+| mTLS mellom tjenester | Istio | **Valgfritt** — kan skippes |
+| Validering av CRDs | Admission webhooks | Alltid på |
+| App-level audit | Structured logging | Alltid på |
+| Multi-tenancy | OpenClawTenant CRD | Alltid tilgjengelig |
+
+**Nøkkelen:** Istio er kraftig men tung (~300MB). Kyverno er lettvekt (~200MB)
+og gir det meste av policy-håndhevelse. kubeclaw skal fungere utmerket uten Istio.
 
 ---
 
-## NemoClaw vs. kubeclaw — Oppdatert Sammenligning
+## Arkitektur
 
-NemoClaw er single-host sandboxing. kubeclaw er enterprise orchestration.
-De er ikke i samme kategori — og med KlawAgent er gapet enda større.
-
-### Arkitektonisk premiss
+### Minimal (RPi5 / k3s / hjemmeserver)
 
 ```
-NemoClaw:
-  1 host → Landlock sandbox → 1 OpenClaw
-  Alle ressurser på én maskin. Ingen distribusjon.
-
-kubeclaw:
-  K8s cluster → Namespace-isolert → N OpenClaw-instanser
-  + KlawAgent → M target systems utenfor cluster
-  Distribuert, skalerbart, enterprise-grade.
+┌──────────────────────────────────────────────┐
+│  k3s cluster (RPi5 eller liten VPS)          │
+│                                              │
+│  kubeclaw-operator (~128MB)                  │
+│  Kyverno (~200MB)                            │
+│                                              │
+│  ┌────────────────────────────────────────┐  │
+│  │  Tenant: default                        │  │
+│  │  ┌──────────────────────────────────┐  │  │
+│  │  │  OpenClaw (pod)                   │  │  │
+│  │  │  - Non-root, readOnlyRootFS       │  │  │
+│  │  │  - Capabilities: ALL dropped      │  │  │
+│  │  │  - NetworkPolicy: default deny    │  │  │
+│  │  │  - ResourceQuota: enforced        │  │  │
+│  │  └──────────────────────────────────┘  │  │
+│  └────────────────────────────────────────┘  │
+│                                              │
+│  Total RAM: ~700MB + OpenClaw ~512MB = ~1.2GB│
+└──────────────────────────────────────────────┘
 ```
 
-### Detaljert sammenligning
-
-| Sikkerhetslag | NemoClaw | kubeclaw (med KlawAgent) | Vinner |
-|---------------|----------|--------------------------|--------|
-| **Container-isolasjon** | seccomp/Landlock på vert | K8s namespace + PSA restricted | 🏆 kubeclaw (dypere) |
-| **Nettverksisolasjon** | Linux netns + iptables | Istio mTLS + AuthorizationPolicy | 🏆 kubeclaw |
-| **Service auth** | Ingen | SPIFFE/SVID identiteter | 🏆 kubeclaw |
-| **Egress-kontroll** | iptables per sandbox | Istio Egress Gateway + Kyverno | 🏆 kubeclaw |
-| **External system access** | Landlock på vert | KlawAgent: Noise XX E2E + policy | 🏆 kubeclaw |
-| **Cross-system kryptering** | Ingen (lokal) | Noise XX, relay-opaque | 🏆 kubeclaw |
-| **NAT-traversal** | ❌ | ✅ via KlawAgent cascade | 🏆 kubeclaw |
-| **Air-gap support** | ❌ | ✅ Reticulum/serial | 🏆 kubeclaw |
-| **Secret management** | Lokale filer | Vault + External Secrets Operator | 🏆 kubeclaw |
-| **Secret rotation** | Manuell | Automatisk (ESO refreshInterval) | 🏆 kubeclaw |
-| **Policy enforcement** | Hardkodet | Kyverno (deklarativ YAML) | 🏆 kubeclaw |
-| **Blast radius** | N/A (single host) | Politikkbegrenset (maxConcurrentAgents) | 🏆 kubeclaw |
-| **Audit logging** | Basic | App-level + K8s audit + RPC-kall | 🏆 kubeclaw |
-| **SSRF-beskyttelse** | Landlock | Kyverno policy + Istio + KlawAgent deny | 🏆 kubeclaw |
-| **Multi-tenant** | ❌ | ✅ OpenClawTenant CRD | 🏆 kubeclaw |
-| **Skalerbarhet** | 1 sandbox/host | Ubegrenset | 🏆 kubeclaw |
-| **RPi5/k3s support** | ✅ | ✅ (lettvekt-konfig) | 🟡 Tie |
-| **Routed inference** | ✅ | ✅ via KlawAgent proxy | 🟡 Tie |
-
-**Score: kubeclaw 16 — NemoClaw 1 — Tie 2**
-
-### Hva NemoClaw gjør bedre (ærlig vurdering)
-
-- **Enklere å sette opp** — single binary på én host. Zero K8s-kompleksitet.
-- **Lavere overhead** — ingen K8s, ingen Istio, ingen operator.
-- **Kernel-level sandboxing** — Landlock er dypere enn container-isolasjon for filsystem.
-
-kubeclaw er riktig valg for: enterprise, multi-tenant, multi-system, team.  
-NemoClaw er riktig valg for: én person, én host, maksimal enkelhet.
-
----
-
-## Revidert CRD-Modell med KlawAgent
-
-### Nye og oppdaterte CRD-er
+### Full Enterprise (cloud / datacenter)
 
 ```
-kubeclaw.io/v1alpha1
-├── OpenClaw              (eksisterende — OpenClaw-instans)
-├── OpenClawTenant        (eksisterende — tenant-isolasjon)
-├── KlawAgentConfig       (NY — agent-registrering og policy)
-├── ConnectionPolicy      (NY — fra KlawAgent)
-├── RPCPolicy             (NY — fra KlawAgent)
-├── SecurityPolicy        (NY — cluster-wide immutable rules)
-└── DesiredStatePolicy    (NY — convergence-regler)
+┌──────────────────────────────────────────────────────────────┐
+│  Kubernetes Cluster (EKS / GKE / AKS / on-prem)             │
+│                                                              │
+│  kubeclaw-operator                                           │
+│  Kyverno (policy)                                            │
+│  External Secrets Operator → Vault / AWS SM / Azure KV      │
+│  Istio (mTLS, egress gateway, observability) [valgfritt]     │
+│                                                              │
+│  ┌─────────────────────────┐  ┌─────────────────────────┐   │
+│  │  Tenant: team-alpha      │  │  Tenant: team-beta       │   │
+│  │  Namespace: ta           │  │  Namespace: tb           │   │
+│  │  ┌───────┐ ┌───────┐    │  │  ┌───────┐ ┌───────┐    │   │
+│  │  │  OC   │ │  OC   │    │  │  │  OC   │ │  OC   │    │   │
+│  │  │  -1   │ │  -2   │    │  │  │  -1   │ │  -2   │    │   │
+│  │  └───────┘ └───────┘    │  │  └───────┘ └───────┘    │   │
+│  │  NetworkPolicy: isolated │  │  NetworkPolicy: isolated │   │
+│  │  ResourceQuota: enforced │  │  ResourceQuota: enforced │   │
+│  │  Secrets: via ESO        │  │  Secrets: via ESO        │   │
+│  └─────────────────────────┘  └─────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### KlawAgentConfig CRD
+### Med KlawAgent (valgfritt plugin)
 
-```yaml
-apiVersion: kubeclaw.io/v1alpha1
-kind: KlawAgentConfig
-metadata:
-  name: prod-server-1
-  namespace: tenant-acme
-spec:
-  agentID: prod-server-1
-  displayName: "Production Server 1"
-  labels:
-    environment: production
-    role: web-server
-    security-zone: high
+KlawAgent installeres som et separat plugin — enten i clusteret som Gateway,
+eller som standalone binary på target-systemer. OpenClaw-instansen konfigureres
+til å bruke KlawAgent som verktøy, akkurat som den ville brukt exec-verktøyet
+lokalt på et single-system.
 
-  # Hvilke policies gjelder
-  connectivityPolicyRef: high-security
-  rpcPolicyRef: production
-  metricsPolicyRef: full
-
-  # Bootstrap-token konfig
-  bootstrap:
-    tokenTTL: 1h
-
-status:
-  connected: true
-  lastSeen: "2026-04-08T02:00:00Z"
-  activeTransport: wireguard-relay
-  agentVersion: "0.1.0"
-  hostname: prod-web-1
-  os: linux/amd64
 ```
-
-### OpenClaw CRD (utvidet)
-
-```yaml
-apiVersion: kubeclaw.io/v1alpha1
-kind: OpenClaw
-metadata:
-  name: main
-  namespace: tenant-acme
-spec:
-  model:
-    provider: anthropic
-    apiKeySecretRef: model-credentials  # Via External Secrets → Vault
-
-  workspace:
-    repository: https://github.com/acme/workspace
-    credentials:
-      name: git-credentials            # Via External Secrets → Vault
-
-  # KlawAgent-integrasjon (NY)
-  klawagent:
-    enabled: true
-    allowedAgents:
-      - "*"                            # Alle agenter i denne tenant
-    # Eller spesifikke:
-    # - prod-server-1
-    # - build-win-1
-
-  # External Secrets backend
-  secretStore:
-    kind: ClusterSecretStore
-    name: vault-backend
-    refreshInterval: 1h
-
-  # Resource limits (Kyverno enforcer)
-  resources:
-    limits:
-      cpu: "2"
-      memory: "2Gi"
-    requests:
-      cpu: "500m"
-      memory: "512Mi"
+OpenClaw-pod (i kubeclaw)
+  ↓ plugin kall
+KlawAgent-plugin (klientbibliotek i OpenClaw)
+  ↓ Noise XX kryptert
+KlawAgent-relay (K8s Deployment, eller ekstern VPS)
+  ↓ Noise XX kryptert
+KlawAgent-binary (target-system)
+  ↓ RPCPolicy-sjekk
+Lokal exec / filsystem
 ```
 
 ---
 
-## Revidert Implementasjonsplan
+## NemoClaw vs. kubeclaw
 
-### Fase 1 — K8s-kjerne (allerede påbegynt, ~20h gjenstår)
+### Riktig premiss for sammenligningen
 
-**Status:** CRDs definert, reconciler delvis implementert.
+```
+NemoClaw:   Single-host sandboxing
+            1 OpenClaw ↔ 1 maskin
+            Isolasjon: Landlock + seccomp på vertsOS
 
-**Gjenstår:**
-- [ ] Validation webhooks (4h) — avvis dårlige CRs før apply
-- [ ] OpenClawTenant controller — full namespace-provisjonering (4h)
-- [ ] Kyverno policy-bundle medfølger Helm-chart (4h)
+kubeclaw:   Kubernetes-native orchestration
+            N OpenClaw ↔ K8s cluster (1 node til hundrevis)
+            Isolasjon: K8s namespace + container + policy
+```
+
+De er ikke i samme kategori. NemoClaw er riktig valg for én person på én maskin.
+kubeclaw er riktig valg for team, enterprise, og multi-system.
+
+### Sikkerhetsmessig sammenligning
+
+| Lag | NemoClaw | kubeclaw (uten Istio) | kubeclaw (med Istio) |
+|-----|----------|----------------------|---------------------|
+| **Prosess-isolasjon** | Landlock + seccomp | Container + PSA restricted | Container + PSA restricted |
+| **Filsystem-isolasjon** | Landlock (granulær) | readOnlyRootFS + emptyDir | readOnlyRootFS + emptyDir |
+| **Nettverksisolasjon** | Linux netns + iptables | NetworkPolicy | NetworkPolicy + mTLS |
+| **Service-autentisering** | Ingen | RBAC | SPIFFE/SVID (mTLS) |
+| **Egress-kontroll** | iptables | NetworkPolicy egress | Istio Egress Gateway |
+| **Secret management** | Lokale filer | K8s Secrets | K8s Secrets + ESO + Vault |
+| **Secret rotation** | Manuell | Valgfritt (ESO) | Automatisk (ESO) |
+| **Policy enforcement** | Hardkodet | Kyverno (deklarativ) | Kyverno + Istio |
+| **SSRF-beskyttelse** | Landlock | Kyverno NetworkPolicy | Kyverno + Istio deny |
+| **Audit logging** | Basic | K8s audit + app-level | K8s audit + app-level + Istio |
+| **Multi-tenant** | ❌ | ✅ Namespace-isolert | ✅ + mTLS-isolert |
+| **Skalerbarhet** | 1 sandbox | Ubegrenset | Ubegrenset |
+| **Kompleksitet** | Lav | Medium | Høy |
+| **RPi5-kompatibel** | ✅ | ✅ | ⚠️ (krevende) |
+
+### Hva NemoClaw gjør bedre
+
+- **Landlock er dypere enn readOnlyRootFS** for filsystem-isolasjon.
+  Landlock gir granulær path-kontroll på kernel-nivå.
+  Container-isolasjon er bredere men ikke like dyp for FS-operasjoner.
+
+- **Null K8s-overhead.** Ingen operator, ingen webhooks, ingen CRDs.
+  For én person på én maskin er dette den riktige avveiningen.
+
+- **Enklere å forstå og auditere.**
+  Færre bevegelige deler = mindre angrepsflate i infrastrukturen rundt.
+
+### Konklusjon
+
+kubeclaw er ikke NemoClaw "gjort bedre". Det er en annen løsning for en annen
+kontekst. kubeclaw utnytter det K8s allerede gir — og legger til det K8s mangler
+for enterprise OpenClaw-deployments. NemoClaw gjør noe kubeclaw ikke gjør:
+kernel-level Landlock sandboxing av filsystemtilgang.
+
+Et mulig fremtidig tillegg til kubeclaw: Landlock-basert seccomp-profil for
+OpenClaw-pods, som kombinerer K8s-isolasjon med NemoClaw-inspirert FS-sandboxing.
+
+---
+
+## Implementasjonsplan
+
+### Fase 1 — Kjerne (P0, ~20h gjenstår)
+
+Gjenstår av allerede påbegynt arbeid:
+
+- [ ] Validation webhooks (4h)
+  - Avvis CRs med SSRF-URLs i workspace.repository
+  - Avvis CRs uten resource limits
+  - Avvis CRs som bryter tenant-isolasjon
+- [ ] Kyverno policy-bundle i Helm-chart (4h)
+  - require-non-root, require-readonly-rootfs, drop-all-capabilities
+  - block-cloud-metadata, validate-workspace-repository
+  - require-resource-limits
 - [ ] External Secrets Operator-integrasjon (4h)
-- [ ] Helm chart ferdigstilt og testet (4h)
+  - ClusterSecretStore for Vault / AWS SM / Azure KV
+  - ExternalSecret-templates for model-credentials og git-credentials
+- [ ] Helm chart ferdigstilt (4h)
+  - values-minimal.yaml (RPi5/k3s)
+  - values-enterprise.yaml (cloud)
+  - CRD-installasjon inkludert
+- [ ] Integration tests med envtest (4h)
 
-**Output:** Fungerende kubeclaw uten KlawAgent. Kan deploye OpenClaw på K8s med multi-tenant.
+**Output:** Fungerende, testbar kubeclaw. Kan deploye OpenClaw på K8s med
+multi-tenant, policy, og secret management.
 
-### Fase 2 — KlawAgent-integrasjon (ny, ~30h)
+### Fase 2 — Enterprise (P1, ~18h)
 
-**Avhenger av:** KlawAgent MVP (WebSocket + Noise XX + RPCPolicy) — ~44h.
+- [ ] Istio-integrasjon (valgfritt, helm flag) (6h)
+  - PeerAuthentication STRICT per tenant-namespace
+  - AuthorizationPolicy default-deny + intra-tenant allow
+  - Egress Gateway med provider-whitelist
+- [ ] Secret rotation via ESO (4h)
+  - refreshInterval-basert automatisk rotation
+  - Status-felt i OpenClaw CR for rotation-state
+- [ ] Prometheus metrics fra operatoren (4h)
+  - Antall instanser per tenant, reconcilasjonstid, feil
+- [ ] Helm chart på ArtifactHub (4h)
 
-**kubeclaw-siden:**
-- [ ] KlawAgentConfig CRD + controller (6h)
-  - Provisjonerer KlawAgent-namespace
-  - Genererer bootstrap-token
-  - Distribuerer ConnectivityPolicy og RPCPolicy til agenten
-  - Tracker agent-status (connected, lastSeen, activeTransport)
-- [ ] KlawAgent Gateway deployment (4h)
+### Fase 3 — KlawAgent-plugin (P2, ~30h)
+
+**Avhenger av KlawAgent MVP (~44h separat).**
+
+Integrasjon av KlawAgent som valgfritt plugin i kubeclaw:
+
+- [ ] KlawAgentConfig CRD (6h)
+  - Registrering av target-agenter per tenant
+  - Bootstrap-token generering
+  - Agent-status tracking
+- [ ] KlawAgent Gateway (4h)
   - Relay-broker som K8s Deployment
-  - Meet-token generator (control plane)
-  - Agent-registry
-- [ ] OpenClaw → KlawAgent tool registration (6h)
-  - OpenClaw-instanser i kubeclaw får automatisk tilgang til KlawAgents i sin tenant
-  - Tool-definisjon injiseres i OpenClaw-config
-- [ ] Policy distribution (6h)
-  - Operator pusher ConnectivityPolicy og RPCPolicy til tilkoblede agenter
-  - Hot-reload uten agent-restart
-- [ ] Metrics aggregering (4h)
-  - KlawAgent-metrikk samles inn og eksponeres til Prometheus/InfluxDB
-- [ ] CLI: `kubectl kubeclaw agent` subcommands (4h)
-  - `token generate`, `list`, `status`, `revoke`
+  - Meet-token API
+- [ ] Policy-distribusjon (6h)
+  - Operator pusher ConnectivityPolicy + RPCPolicy til agenter
+  - Hot-reload uten restart
+- [ ] OpenClaw tool-registrering (6h)
+  - KlawAgent-verktøy automatisk tilgjengelig i OpenClaw-config
+  - Tenant-scoped: OpenClaw ser kun sine egne agenter
+- [ ] `kubectl kubeclaw agent` CLI (4h)
+- [ ] Metrics fra agenter (4h)
 
-**Output:** OpenClaw-instanser i kubeclaw kan RPC til target-systemer. AI-agenter kan arbeide på systemer utenfor clusteret, policy-kontrollert.
+### Fase 4 — Landlock (P3, ~8h)
 
-### Fase 3 — Istio + Service Mesh (ny, ~16h)
+Kernel-level filsystem-sandboxing inspirert av NemoClaw:
 
-- [ ] Istio-installasjon som valgfri kubeclaw-avhengighet (2h)
-- [ ] PeerAuthentication: STRICT mTLS per tenant-namespace (2h)
-- [ ] AuthorizationPolicy: default-deny + intra-tenant allow (2h)
-- [ ] Egress Gateway: whitelist modell-providers, blokkere metadata (4h)
-- [ ] Rate limiting per tenant (2h)
-- [ ] Observability: Kiali + Jaeger-integrasjon (4h)
-
-### Fase 4 — Desired State og Playbooks (via KlawAgent, ~20h)
-
-Når KlawAgent v0.2+ har desired state og playbook-støtte:
-
-- [ ] PlaybookJob CRD — kjør KlawAgent-playbook fra K8s (8h)
-- [ ] DesiredStateCheck CRD — kontinuerlig drift-deteksjon (8h)
-- [ ] Resultat-aggregering og alerting (4h)
-
-### Fase 5 — Enterprise (fremtidig)
-
-- [ ] Headscale-integrasjon (self-hosted WireGuard control plane)
-- [ ] Compliance-rapportering (SOC2-ready audit log)
-- [ ] Multi-cluster federation
-- [ ] Helm chart på ArtifactHub
+- [ ] Landlock seccomp-profil for OpenClaw-pods (4h)
+  - Begrenset til /workspace, /tmp, /run/openclaw
+  - Init-container som setter opp Landlock-regler
+- [ ] Integrasjon med SecurityContext (2h)
+- [ ] Test på Linux 5.13+ (Landlock minimum) (2h)
 
 ---
 
-## Lettvekt-konfig: RPi5 + k3s
+## Profilvalg
 
-kubeclaw er designet for å kjøre på RPi5 med k3s uten full Istio:
+### RPi5 / k3s / hobbyist
 
 ```yaml
-# values-rpi5.yaml — minimal footprint
-global:
-  platform: k3s
-
+# helm install kubeclaw kubeclaw/kubeclaw -f values-minimal.yaml
 istio:
-  enabled: false          # For tung for RPi5 (~300MB)
-
+  enabled: false
 kyverno:
-  enabled: true           # Lettvekt (~200MB)
-  background: false       # Kun validate on create/update
-
-klawagent:
   enabled: true
-  relay:
-    enabled: true         # Self-hosted relay
-    replicas: 1
-
-resources:
-  operator:
-    limits:
-      cpu: "500m"
-      memory: "256Mi"
-  relay:
-    limits:
-      cpu: "100m"
-      memory: "64Mi"
+  background: false
+externalSecrets:
+  enabled: false    # Bruk K8s Secrets direkte
+klawagent:
+  enabled: false
 ```
 
-**Estimert RAM på RPi5 (4GB):**
-```
-k3s:              ~512MB
-kubeclaw-operator: ~128MB
-Kyverno:          ~200MB
-KlawAgent relay:   ~64MB
-OpenClaw (1x):    ~512MB
-─────────────────────────
-Total:           ~1.4GB   (2.6GB ledig for OS + ekstra instanser)
-```
+RAM: ~700MB + OpenClaw-instanser
 
----
+### Enterprise / cloud
 
-## Prioritert Rekkefølge (hva å bygge når)
-
-```
-Nå (P0 — parallelt med KlawAgent MVP):
-  kubeclaw Fase 1 — validation webhooks + Kyverno + ESO + Helm (~20h)
-
-Etter KlawAgent MVP (44h):
-  kubeclaw Fase 2 — KlawAgent-integrasjon (~30h)
-
-  → Demo: "OpenClaw på k3s/RPi5 med KlawAgent på laptop"
-  → Alle kommandoer kryptert, policy-kontrollert, auditert
-
-Deretter:
-  kubeclaw Fase 3 — Istio (kun for cloud/enterprise) (~16h)
-  kubeclaw Fase 4 — Desired State + Playbooks (~20h)
-```
-
-**Total gjenstående for full kubeclaw + KlawAgent MVP:**
-```
-kubeclaw Fase 1+2:  ~50h
-KlawAgent MVP:      ~44h
-─────────────────────────
-Total:             ~94h  (~2.5 måneder deltid)
+```yaml
+# helm install kubeclaw kubeclaw/kubeclaw -f values-enterprise.yaml
+istio:
+  enabled: true
+kyverno:
+  enabled: true
+externalSecrets:
+  enabled: true
+  backend: vault    # vault | aws-secrets-manager | azure-key-vault
+klawagent:
+  enabled: true     # Valgfritt plugin
 ```
 
 ---
 
-## Det Unike Verdiforslaget
+## Totalt Estimat
 
-Etter Fase 1+2:
-
-> **kubeclaw er det eneste Kubernetes-operatøren som gir AI-agenter
-> policy-kontrollert, E2E-kryptert tilgang til systemer utenfor clusteret —
-> gjennom hvilken som helst nettverkstopologi, uten inbound porter.**
-
-Ingen andre verktøy kombinerer:
-- K8s-native AI-agent-orkestrering
-- Zero-ingress networking
-- E2E-kryptert remote execution
-- Deklarativ policy på alle lag
-- Støtte fra RPi5-k3s til enterprise EKS/GKE/AKS
+| Fase | Timer | Prioritet |
+|------|-------|-----------|
+| Fase 1 — Kjerne | ~20h | P0 |
+| Fase 2 — Enterprise | ~18h | P1 |
+| Fase 3 — KlawAgent plugin | ~30h | P2 |
+| Fase 4 — Landlock | ~8h | P3 |
+| **kubeclaw totalt** | **~76h** | |
+| KlawAgent MVP (separat) | ~44h | P2 (parallelt) |
 
 ---
 
